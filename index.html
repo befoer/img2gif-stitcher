@@ -1,0 +1,1988 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Tell browser and extensions like Dark Reader that we support and prefer dark mode natively -->
+  <meta name="color-scheme" content="dark">
+  <meta name="darkreader" content="nope">
+  <meta name="darkreader-lock">
+  <title>图片切图 GIF 拼图工具</title>
+  <meta name="description" content="免费在线图片切图 GIF 拼图工具，拖入多张 JPG/PNG 后按分段数量切图，每个段位自动合成循环 GIF 动图。">
+  <link rel="canonical" href="https://itg.acg-dna.com/">
+  <style>
+    :root {
+      --bg1: #0d1b2a;
+      --bg2: #1b263b;
+      --bg3: #415a77;
+      --panel: rgba(255, 255, 255, 0.08);
+      --line: rgba(255, 255, 255, 0.18);
+      --text: #f5f8ff;
+      --muted: #c6cfdd;
+      --accent: #3df2dd;
+      --accent2: #8ecae6;
+      --ok: #06d6a0;
+      --err: #ef476f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: "Segoe UI", sans-serif;
+      background:
+        radial-gradient(ellipse at 15% 10%, rgba(142, 202, 230, 0.2), transparent 60%),
+        radial-gradient(ellipse at 85% 70%, rgba(61, 242, 221, 0.08), transparent 50%),
+        linear-gradient(140deg, var(--bg1), var(--bg2) 45%, var(--bg3));
+      min-height: 100vh;
+      padding: 20px 14px 60px; /* Increased bottom padding to prevent content from hiding behind the footer */
+      position: relative;
+    }
+
+    .app {
+      max-width: 1240px;
+      margin: 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 10px 34px rgba(0, 0, 0, 0.22);
+      overflow: hidden;
+      padding: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.35rem, 2vw, 1.9rem);
+      letter-spacing: 0.02em;
+    }
+
+    .intro {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.94rem;
+      line-height: 1.45;
+    }
+
+    .controls {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+      align-items: end;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 0.86rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .field input[type="number"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.26);
+      color: var(--text);
+      font: inherit;
+      padding: 10px 12px;
+      transition: border-color 0.2s;
+    }
+
+    .field input[type="number"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+
+    .range-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .range-group input[type="range"] {
+      flex: 1;
+      max-width: 90px;
+      height: 4px;
+      -webkit-appearance: none;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+      outline: none;
+    }
+
+    .range-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+
+    .range-group input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .range-group input[type="number"] {
+      width: 54px;
+      flex-shrink: 0;
+      padding: 6px 4px 6px 8px;
+    }
+
+    .toggle {
+      display: flex;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.22);
+      width: 100%;
+    }
+
+    .toggle button {
+      flex: 1;
+      border: 0;
+      border-right: 1px solid rgba(255, 255, 255, 0.14);
+      background: transparent;
+      color: var(--muted);
+      padding: 9px 12px;
+      font: 600 0.88rem "Segoe UI", sans-serif;
+      cursor: pointer;
+    }
+
+    .toggle button:last-child {
+      border-right: 0;
+    }
+
+    .toggle button.active {
+      background: linear-gradient(120deg, rgba(142, 202, 230, 0.34), rgba(61, 242, 221, 0.3));
+      color: #fff;
+    }
+
+    .drop {
+      margin: 14px auto 0;
+      width: 100%;
+      min-height: 142px;
+      border: 2px dashed rgba(255, 255, 255, 0.35);
+      border-radius: 14px;
+      background: rgba(0, 0, 0, 0.14);
+      display: grid;
+      align-content: center;
+      justify-items: center;
+      gap: 8px;
+      text-align: center;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 14px;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .drop.dragover {
+      border-color: var(--accent2);
+      background: rgba(142, 202, 230, 0.1);
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    .actions {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 18px;
+      min-height: 44px; /* Fix height consistency */
+      font: 600 0.95rem "Segoe UI", sans-serif;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.16s ease, opacity 0.16s ease;
+    }
+
+    .btn svg {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      transform: none;
+      cursor: not-allowed;
+    }
+
+    .btn-main {
+      background: linear-gradient(125deg, var(--accent), #7ffcf0);
+      color: #1f1f1f;
+    }
+
+    .btn-ok {
+      background: linear-gradient(120deg, #ff6b9d, #ff9ec4);
+      color: #1f0812;
+    }
+
+    #copyAllBtn:disabled {
+      background: rgba(255, 255, 255, 0.14);
+      color: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+
+    /* Status & Progress */
+    .status-bar {
+      margin-top: 16px;
+      margin-bottom: 24px; /* Added margin to prevent overlap */
+      font-size: 0.95rem;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: center;
+      transition: all 0.3s;
+    }
+
+    .status-text {
+      flex: 1;
+      padding: 4px;
+      transition: color 0.3s;
+    }
+
+    .progress {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+      display: none; /* Hidden by default */
+    }
+
+    .progress.active {
+      display: block;
+      margin-bottom: 12px; /* Ensure space below progress bar */
+    }
+
+    .progress-fill {
+      width: 0;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      transition: width 0.2s ease;
+    }
+
+    .status {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.24);
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .status.ok {
+      border-color: rgba(6, 214, 160, 0.6);
+      color: #eafff8;
+    }
+
+    .status.err {
+      border-color: rgba(239, 71, 111, 0.7);
+      color: #ffe7ee;
+    }
+
+    .hint {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+
+    h2 {
+      margin: 18px 0 8px;
+      font-size: 1rem;
+      letter-spacing: 0.03em;
+    }
+
+    .grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 24px; /* Increased gap */
+    }
+
+    .source-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.28);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      width: 220px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.28);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      /* Calculation: roughly 25% minus gap margin */
+      width: calc(25% - 18px);
+      min-width: 180px;
+    }
+
+    .source-thumb-wrap {
+      height: 160px;
+      position: relative;
+      background: rgba(0, 0, 0, 0.4);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .source-thumb-wrap img.bg-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    .cropper-box {
+      position: absolute;
+      border: 1.5px dashed rgba(255, 255, 255, 0.9);
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+      cursor: grab;
+      z-index: 11;
+      display: none;
+    }
+
+    body[data-fit="cover"] .cropper-box {
+      display: block;
+    }
+
+    .cropper-box:active {
+      cursor: grabbing;
+    }
+
+    .source-meta {
+      padding: 8px 10px 10px;
+      display: grid;
+      gap: 3px;
+      position: relative;
+    }
+
+    .source-name {
+      font-size: 0.86rem;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-right: 24px;
+    }
+
+    .btn-delete-img {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(2px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: all 0.2s;
+      z-index: 20;
+    }
+
+    .btn-delete-img:hover {
+      background: rgba(239, 71, 111, 0.9);
+      border-color: rgba(239, 71, 111, 0.9);
+      transform: scale(1.05);
+    }
+
+    .source-res {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 0.84rem;
+      color: var(--muted);
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .thumb {
+      width: 100%;
+      max-height: 170px;
+      object-fit: contain;
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 8px;
+      padding: 10px;
+      flex-wrap: wrap;
+    }
+
+    .strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      justify-content: center;
+      margin-top: 24px;
+      margin-bottom: 24px;
+    }
+
+    /* Section divider */
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+      width: 100%;
+      margin: 32px 0;
+      display: none; /* Hidden until content is there */
+    }
+
+    .strip img {
+      display: block;
+      height: 110px;
+      border-radius: 7px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .strip.vertical {
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .strip.vertical img {
+      height: auto;
+      width: min(100%, 320px);
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      padding: 15px 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(10, 21, 33, 0.2);
+      backdrop-filter: blur(4px);
+    }
+    
+    .footer a {
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    
+    .footer a:hover {
+      color: var(--accent);
+    }
+
+
+
+
+    @media (max-width: 860px) {
+      .app {
+        padding: 14px;
+      }
+
+      .actions {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+
+
+  <div style="text-align: center; margin-top: 24px; margin-bottom: 24px; position: relative; z-index: 10;">
+    <h1 id="titleText" style="margin: 0 0 8px 0;">图片切图 GIF 拼图工具</h1>
+    <p id="introText" class="intro" style="margin: 0;">拖入多张 JPG/PNG 后，按分段数量切图。每个段位会合成 1 张循环 GIF</p>
+  </div>
+
+  <div class="app">
+    <div class="controls">
+      <div class="field" style="display: none;">
+        <label id="labelDirection">切图方向</label>
+        <div id="directionToggle" class="toggle">
+          <button id="btnDirHorizontal" type="button" data-dir="horizontal" class="active">横切（上下）</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label id="labelSegments" for="segmentCount">切段数</label>
+        <div class="range-group">
+          <input type="range" id="segmentCountRange" min="1" max="30" value="6" />
+          <input type="number" id="segmentCount" min="1" max="30" value="6" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label id="labelDelay" for="frameDelay">每帧时长 (ms)</label>
+        <div class="range-group">
+          <input type="range" id="frameDelayRange" min="50" max="5000" step="10" value="600" />
+          <input type="number" id="frameDelay" min="50" max="5000" step="10" value="600" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label id="labelQuality" for="quality">色彩数 (4-256)</label>
+        <div class="range-group">
+          <input type="range" id="qualityRange" min="4" max="256" value="32" step="1" />
+          <input type="number" id="quality" min="4" max="256" value="32" step="1" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label id="labelTargetWidth" for="targetWidth">目标宽度 (px)</label>
+        <div class="range-group">
+          <input type="range" id="targetWidthRange" min="2" max="2048" step="1" value="768" />
+          <input type="number" id="targetWidth" min="2" max="8192" step="1" value="768" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label id="labelTargetHeight" for="targetHeight">目标高度 (px)</label>
+        <div class="range-group">
+          <input type="range" id="targetHeightRange" min="2" max="2048" step="1" value="768" />
+          <input type="number" id="targetHeight" min="2" max="8192" step="1" value="768" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label id="labelFitMode">适配方式</label>
+        <div id="fitModeToggle" class="toggle">
+          <button id="btnFitCover" type="button" data-fit="cover" class="active">裁切填充</button>
+          <button id="btnFitContain" type="button" data-fit="contain">完整显示</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="dropZone" class="drop" tabindex="0" role="button" aria-label="Drop or choose images">
+      <strong id="dropHintText">拖拽图片到这里，或点击这里选择文件</strong>
+      <div id="dropCountText">已载入 <span id="fileCount">0</span> 张图片</div>
+    </div>
+    <input id="fileInput" type="file" accept="image/*" multiple />
+
+    <div class="actions">
+      <button id="generateBtn" class="btn btn-main">
+        ▶ 生成 GIF
+      </button>
+      <button id="clearBtn" class="btn btn-ghost">
+        🗑 清空
+      </button>
+    </div>
+
+    <div class="status-bar" style="position: relative; z-index: 100;">
+      <div id="status" class="status-text"></div>
+      <div id="progressBar" class="progress"><div class="progress-fill"></div></div>
+    </div>
+    
+    <h2 id="h2Source" style="display: none !important;">Source Images</h2>
+    <div id="sourceGrid" class="grid" style="margin-bottom: 24px;"></div>
+
+    <div id="divider1" class="section-divider"></div>
+
+    <div id="copyWrap" style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 12px; margin-top: 12px; display: none;">
+      <button id="copyAllBtn" class="btn btn-ok">
+        📋 复制全部 GIF
+      </button>
+      <div style="font-size: 12px; color: rgba(255, 255, 255, 0.5); margin-top: 8px;">* 仅支持从 PC 端复制到 NTQQ</div>
+    </div>
+
+    <div id="previewHeader" style="display: none !important;">
+      <h2 id="h2Preview">Composite Preview</h2>
+    </div>
+    <div id="stripPreview" class="strip" style="margin-bottom: 12px;"></div>
+
+    <div id="syncWrap" style="display: flex; justify-content: center; margin-bottom: 24px; display: none;">
+      <button id="btnSyncPreview" class="btn btn-ghost" style="padding: 6px 16px; font-size: 0.85rem;">Sync</button>
+    </div>
+
+    <div id="divider2" class="section-divider"></div>
+
+    <h2 id="h2Output" style="display: none !important;">Output GIFs (by segment)</h2>
+    
+    <div id="downloadWrap" style="display: flex; justify-content: center; gap: 12px; margin-bottom: 24px; margin-top: 24px; display: none;">
+      <button id="downloadBulkBtn" class="btn btn-main" style="white-space: nowrap;">
+        💾 批量下载
+      </button>
+      <button id="downloadZipBtn" class="btn btn-main" style="white-space: nowrap;">
+        📦 打包下载 (ZIP)
+      </button>
+    </div>
+
+    <div id="gifGrid" class="grid" style="margin-bottom: 60px;"></div>
+  </div>
+
+  <footer class="footer">
+    <a href="https://github.com/befoer/img2gif-stitcher" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+        <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.46-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
+        </svg>
+        GitHub
+    </a>
+  </footer>
+
+
+  <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script>
+    const GIF_WORKER_URL = "https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js";
+
+    const state = {
+      sourceImages: [],
+      generated: [],
+      objectUrls: [],
+      busy: false,
+      direction: "horizontal",
+      fitMode: "cover",
+      workerScript: "",
+      workerInitPromise: null,
+      revokeWorkerScript: false,
+    };
+
+    const dom = {
+      titleText: document.getElementById("titleText"),
+      introText: document.getElementById("introText"),
+      labelDirection: document.getElementById("labelDirection"),
+      btnDirHorizontal: document.getElementById("btnDirHorizontal"),
+      btnDirVertical: document.getElementById("btnDirVertical"),
+      labelTargetWidth: document.getElementById("labelTargetWidth"),
+      labelTargetHeight: document.getElementById("labelTargetHeight"),
+      labelFitMode: document.getElementById("labelFitMode"),
+      btnFitCover: document.getElementById("btnFitCover"),
+      btnFitContain: document.getElementById("btnFitContain"),
+      labelSegments: document.getElementById("labelSegments"),
+      labelDelay: document.getElementById("labelDelay"),
+      labelQuality: document.getElementById("labelQuality"),
+      directionToggle: document.getElementById("directionToggle"),
+      fitModeToggle: document.getElementById("fitModeToggle"),
+      segmentCount: document.getElementById("segmentCount"),
+      segmentCountRange: document.getElementById("segmentCountRange"),
+      frameDelay: document.getElementById("frameDelay"),
+      frameDelayRange: document.getElementById("frameDelayRange"),
+      quality: document.getElementById("quality"),
+      qualityRange: document.getElementById("qualityRange"),
+      targetWidth: document.getElementById("targetWidth"),
+      targetWidthRange: document.getElementById("targetWidthRange"),
+      targetHeight: document.getElementById("targetHeight"),
+      targetHeightRange: document.getElementById("targetHeightRange"),
+      dropZone: document.getElementById("dropZone"),
+      dropHintText: document.getElementById("dropHintText"),
+      dropCountText: document.getElementById("dropCountText"),
+      fileInput: document.getElementById("fileInput"),
+      fileCount: document.getElementById("fileCount"),
+      generateBtn: document.getElementById("generateBtn"),
+      copyAllBtn: document.getElementById("copyAllBtn"),
+      copyWrap: document.getElementById("copyWrap"),
+      clearBtn: document.getElementById("clearBtn"),
+      progressBar: document.getElementById("progressBar"),
+      progressFill: document.querySelector("#progressBar .progress-fill"),
+      status: document.getElementById("status"),
+      h2Source: document.getElementById("h2Source"),
+      divider1: document.getElementById("divider1"),
+      previewHeader: document.getElementById("previewHeader"),
+      h2Preview: document.getElementById("h2Preview"),
+      syncWrap: document.getElementById("syncWrap"),
+      btnSyncPreview: document.getElementById("btnSyncPreview"),
+      divider2: document.getElementById("divider2"),
+      h2Output: document.getElementById("h2Output"),
+      sourceGrid: document.getElementById("sourceGrid"),
+      stripPreview: document.getElementById("stripPreview"),
+      gifGrid: document.getElementById("gifGrid"),
+      downloadBulkBtn: document.getElementById("downloadBulkBtn"),
+      downloadZipBtn: document.getElementById("downloadZipBtn"),
+      downloadWrap: document.getElementById("downloadWrap"),
+    };
+    dom.dirButtons = Array.from(dom.directionToggle.querySelectorAll("button[data-dir]"));
+    dom.fitButtons = Array.from(dom.fitModeToggle.querySelectorAll("button[data-fit]"));
+
+    const I18N = {
+      title: "\u56FE\u7247\u5207\u56FE GIF \u62FC\u56FE\u5DE5\u5177",
+      intro:
+        "\u62D6\u5165\u591A\u5F20 JPG/PNG \u540E\uFF0C\u6309\u5206\u6BB5\u6570\u91CF\u5207\u56FE\u3002\u6BCF\u4E2A\u6BB5\u4F4D\u4F1A\u5408\u6210 1 \u5F20\u5FAA\u73AF GIF",
+      labelDirection: "\u5207\u56FE\u65B9\u5411",
+      dirHorizontal: "\u6A2A\u5207\uFF08\u4E0A\u4E0B\uFF09",
+      labelSegments: "\u5207\u6BB5\u6570",
+      labelDelay: "\u6BCF\u5E27\u65F6\u957F (ms)",
+      labelQuality: "\u8272\u5F69\u6570 (4-256)",
+      labelTargetWidth: "\u76EE\u6807\u5BBD\u5EA6 (px)",
+      labelTargetHeight: "\u76EE\u6807\u9AD8\u5EA6 (px)",
+      labelFitMode: "\u9002\u914D\u65B9\u5F0F",
+      fitCover: "\u88C1\u5207\u586B\u5145",
+      fitContain: "\u5B8C\u6574\u663E\u793A",
+      dropHint: "\u62D6\u62FD\u56FE\u7247\u5230\u8FD9\u91CC\uFF0C\u6216\u70B9\u51FB\u8FD9\u91CC\u9009\u62E9\u6587\u4EF6",
+      dropCount: "\u5DF2\u8F7D\u5165 {n} \u5F20\u56FE\u7247",
+      btnGenerate: "\u25B6 \u751F\u6210 GIF",
+      btnCopyAll: "\uD83D\uDCCB \u590D\u5236\u5168\u90E8 GIF",
+      btnClear: "\uD83D\uDDD1 \u6E05\u7A7A",
+      btnSyncPreview: "\u4FEE\u590D\u9519\u4F4D",
+      statusWaiting: "\u7B49\u5F85\u56FE\u7247...",
+      h2Source: "\u539F\u59CB\u56FE\u7247",
+      h2Preview: "\u62FC\u63A5\u9884\u89C8",
+      h2Output: "\u8F93\u51FA GIF\uFF08\u6309\u6BB5\u4F4D\uFF09",
+      btnDownloadZip: "\uD83D\uDCE6 \u6253\u5305\u4E0B\u8F7D (ZIP)",
+      statusCleared: "\u5DF2\u6E05\u7A7A\uFF0C\u7B49\u5F85\u56FE\u7247...",
+      statusDirChanged: "\u5207\u56FE\u65B9\u5411\u5DF2\u5207\u6362\uFF0C\u8BF7\u91CD\u65B0\u751F\u6210 GIF\u3002",
+      errCannotRead: "\u65E0\u6CD5\u8BFB\u53D6\u56FE\u7247: {name}",
+      errNoValidFiles: "\u672A\u68C0\u6D4B\u5230\u53EF\u7528\u56FE\u7247\u6587\u4EF6\u3002",
+      errImageLoad: "\u56FE\u7247\u8BFB\u53D6\u5931\u8D25",
+      statusLoaded: "\u5DF2\u8F7D\u5165 {n} \u5F20\u56FE\u7247\uFF0C\u53EF\u5F00\u59CB\u751F\u6210\u3002",
+      errNeedImage: "\u8BF7\u5148\u62D6\u5165\u81F3\u5C11 1 \u5F20\u56FE\u7247\u3002",
+      errSegments: "\u5207\u6BB5\u6570\u5E94\u5728 1-30 \u4E4B\u95F4\u3002",
+      errDelay: "\u6BCF\u5E27\u65F6\u957F\u5EFA\u8BAE >= 50ms\u3002",
+      errQuality: "GIF \u8D28\u91CF\u8303\u56F4\u5E94\u5728 4-256\u3002",
+      errImageSize: "\u56FE\u7247\u5C3A\u5BF8\u592A\u5C0F\uFF0C\u65E0\u6CD5\u6309\u5F53\u524D\u5206\u6BB5\u6570\u751F\u6210\u3002",
+      errTargetSize: "\u76EE\u6807\u5BBD\u9AD8\u5E94\u5728 2-4096 \u4E4B\u95F4\u3002",
+      errTargetSegment: "\u76EE\u6807\u5C3A\u5BF8\u4E0E\u5207\u6BB5\u6570\u7EC4\u5408\u8FC7\u5C0F\uFF0C\u8BF7\u8C03\u5927\u5BBD\u9AD8\u6216\u51CF\u5C11\u5207\u6BB5\u6570\u3002",
+      statusInitEngine: "\u6B63\u5728\u521D\u59CB\u5316 GIF \u5F15\u64CE...",
+      statusNormalize: "\u6B63\u5728\u89E3\u7801\u5E76\u7F29\u653E\u56FE\u7247...",
+      modeHorizontal: "\u6A2A\u5207\uFF08\u4E0A\u4E0B\uFF09",
+      modeVertical: "\u7AD6\u5207\uFF08\u5DE6\u53F3\uFF09",
+      statusGenerating: "\u5F00\u59CB\u751F\u6210\uFF08{n} \u6BB5\uFF0C{mode}\uFF0C{w}x{h}\uFF09...",
+      statusRendering: "\u751F\u6210\u4E2D {i}/{n} ...",
+      statusDone: "\u751F\u6210\u5B8C\u6210\uFF1A\u5171 {n} \u5F20 GIF\u3002",
+      statusLayoutChanged: "\u6BD4\u4F8B/\u5C3A\u5BF8\u53C2\u6570\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u751F\u6210 GIF\u3002",
+      errWorker:
+        "GIF Worker \u521D\u59CB\u5316\u5931\u8D25\uFF0C\u8BF7\u8054\u7F51\u91CD\u8BD5\uFF1B\u82E5\u4ECD\u5931\u8D25\u8BF7\u7528\u672C\u5730 HTTP \u670D\u52A1\u6253\u5F00\u9875\u9762\u3002",
+      errGenerate: "GIF \u751F\u6210\u5931\u8D25\u3002",
+      segmentLabel: "\u6BB5 {n}",
+      btnCopyThis: "\u590D\u5236\u6B64 GIF",
+      btnDownload: "\u4E0B\u8F7D",
+      statusCopiedSelection: "\u5DF2\u7528\u56FE\u7247\u590D\u5236\u6A21\u5F0F\u590D\u5236 {name}\u3002",
+      statusCopiedHtml: "\u5DF2\u7528 HTML \u590D\u5236\u6A21\u5F0F\u590D\u5236 {name}\u3002",
+      statusCopiedOne: "\u5DF2\u590D\u5236 {name} \u5230\u526A\u8D34\u677F\u3002",
+      errCopyFailed: "\u590D\u5236\u5931\u8D25\u3002",
+      errDataConv: "\u6570\u636E\u8F6C\u6362\u5931\u8D25\u3002",
+      errAsyncUnsupported: "\u5F53\u524D\u6D4F\u89C8\u5668\u4E0D\u652F\u6301\u5F02\u6B65\u526A\u8D34\u677F API\u3002",
+      errGifWriteUnsupported: "\u5F53\u524D\u6D4F\u89C8\u5668\u4E0D\u652F\u6301\u5199\u5165 image/gif\u3002",
+      errImageLoadCopy: "\u56FE\u7247\u52A0\u8F7D\u5931\u8D25\uFF0C\u65E0\u6CD5\u590D\u5236\u3002",
+      errNoImagesCopy: "\u6CA1\u6709\u53EF\u590D\u5236\u7684\u56FE\u7247\u3002",
+      errSelectionBlocked: "\u6D4F\u89C8\u5668\u672A\u5141\u8BB8\u56FE\u7247\u9009\u533A\u590D\u5236\u3002",
+      errHtmlUnsupported: "\u5F53\u524D\u6D4F\u89C8\u5668\u4E0D\u652F\u6301 HTML \u526A\u8D34\u677F\u5199\u5165\u3002",
+      statusCopiedAll: "\u5DF2\u590D\u5236 {n} \u5F20 GIF\u3002",
+      statusCopiedAllSelection: "\u5DF2\u7528\u5BCC\u6587\u672C\u9009\u533A\u590D\u5236\u5168\u90E8 GIF\u3002",
+      statusCopiedAllHtml: "\u5DF2\u7528 HTML \u590D\u5236\u6A21\u5F0F\u590D\u5236\u5168\u90E8 GIF\u3002",
+      errMultiBlocked:
+        "\u5F53\u524D\u6D4F\u89C8\u5668/\u5E73\u53F0\u9650\u5236\u591A\u56FE\u590D\u5236\uFF0C\u8BF7\u6539\u7528\u5355\u5F20\u590D\u5236\u6216\u4E0B\u8F7D\u3002",
+      errEngineMissing: "GIF \u5F15\u64CE\u672A\u52A0\u8F7D\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\u540E\u5237\u65B0\u9875\u9762\u3002",
+      errRenderAbort: "GIF \u6E32\u67D3\u88AB\u4E2D\u65AD",
+      errRenderFail: "GIF \u6E32\u67D3\u5931\u8D25",
+      statusZipping: "\u6B63\u5728\u6253\u5305 ZIP ({n}%)...",
+      errZipFailed: "ZIP \u6253\u5305\u5931\u8D25",
+    };
+
+    function t(key, vars = {}) {
+      let text = I18N[key] || key;
+      for (const [k, v] of Object.entries(vars)) {
+        text = text.replaceAll(`{${k}}`, String(v));
+      }
+      return text;
+    }
+
+    function refreshDropCount() {
+      dom.dropCountText.textContent = t("dropCount", { n: state.sourceImages.length });
+    }
+
+    function applyAverageTargetSize() {
+      if (state.sourceImages.length === 0) return;
+      const sumW = state.sourceImages.reduce((s, x) => s + x.width, 0);
+      const sumH = state.sourceImages.reduce((s, x) => s + x.height, 0);
+      let avgW = sumW / state.sourceImages.length;
+      let avgH = sumH / state.sourceImages.length;
+
+      const maxDim = Math.max(avgW, avgH);
+      if (maxDim > 1024) {
+        const ratio = 1024 / maxDim;
+        avgW *= ratio;
+        avgH *= ratio;
+      }
+
+      dom.targetWidth.value = String(Math.max(2, Math.round(avgW)));
+      dom.targetHeight.value = String(Math.max(2, Math.round(avgH)));
+      refreshSourceRatioVar();
+    }
+
+    function refreshSourceRatioVar() {
+      const w = Math.max(1, Number(dom.targetWidth.value) || 1);
+      const h = Math.max(1, Number(dom.targetHeight.value) || 1);
+      dom.sourceGrid.style.setProperty("--source-ratio", `${w} / ${h}`);
+    }
+
+    function applyChineseUI() {
+      document.documentElement.lang = "zh-CN";
+      document.title = t("title");
+      dom.titleText.textContent = t("title");
+      dom.introText.textContent = t("intro");
+      
+      if(dom.labelDirection) dom.labelDirection.textContent = t("labelDirection");
+      if(dom.btnDirHorizontal) dom.btnDirHorizontal.textContent = t("dirHorizontal");
+      if(dom.btnDirVertical) dom.btnDirVertical.textContent = t("dirVertical");
+      
+      dom.labelSegments.textContent = t("labelSegments");
+      dom.labelDelay.textContent = t("labelDelay");
+      dom.labelQuality.textContent = t("labelQuality");
+      dom.labelTargetWidth.textContent = t("labelTargetWidth");
+      dom.labelTargetHeight.textContent = t("labelTargetHeight");
+      dom.labelFitMode.textContent = t("labelFitMode");
+      dom.btnFitCover.textContent = t("fitCover");
+      dom.btnFitContain.textContent = t("fitContain");
+      dom.dropHintText.textContent = t("dropHint");
+      dom.generateBtn.textContent = t("btnGenerate");
+      dom.copyAllBtn.textContent = t("btnCopyAll");
+      dom.clearBtn.textContent = t("btnClear");
+      dom.h2Source.textContent = t("h2Source");
+      dom.h2Preview.textContent = t("h2Preview");
+      if (dom.btnSyncPreview) dom.btnSyncPreview.textContent = t("btnSyncPreview");
+      dom.h2Output.textContent = t("h2Output");
+      if (dom.downloadZipBtn) dom.downloadZipBtn.textContent = t("btnDownloadZip");
+      refreshDropCount();
+      updateCroppers();
+    }
+
+    function setStatus(msg, type = "") {
+      dom.status.textContent = msg;
+      dom.status.className = `status-text ${type}`.trim();
+    }
+
+    function setProgress(percent) {
+      const n = Math.max(0, Math.min(100, Number(percent) || 0));
+      dom.progressFill.style.width = `${n}%`;
+    }
+
+    function setBusy(busy) {
+      state.busy = busy;
+      dom.generateBtn.disabled = busy;
+      dom.copyAllBtn.disabled = busy || state.generated.length === 0;
+      dom.clearBtn.disabled = busy;
+      dom.segmentCount.disabled = busy;
+      dom.frameDelay.disabled = busy;
+      dom.quality.disabled = busy;
+      dom.targetWidth.disabled = busy;
+      dom.targetHeight.disabled = busy;
+      dom.fileInput.disabled = busy;
+      if (dom.downloadZipBtn) dom.downloadZipBtn.disabled = busy;
+      dom.dirButtons.forEach((btn) => {
+        btn.disabled = busy;
+      });
+      dom.fitButtons.forEach((btn) => {
+        btn.disabled = busy;
+      });
+
+      if (busy) {
+        dom.progressBar.classList.add("active");
+        dom.progressFill.style.width = "0%";
+      } else {
+        dom.progressBar.classList.remove("active");
+      }
+    }
+
+    function cleanupGeneratedUrls() {
+      state.objectUrls.forEach((u) => URL.revokeObjectURL(u));
+      state.objectUrls = [];
+    }
+
+    function cleanupSourceUrls() {
+      state.sourceImages.forEach((x) => {
+        if (x && x.sourceUrl) URL.revokeObjectURL(x.sourceUrl);
+      });
+    }
+
+    function cleanupWorkerScript() {
+      if (state.revokeWorkerScript && state.workerScript) {
+        URL.revokeObjectURL(state.workerScript);
+      }
+      state.workerScript = "";
+      state.workerInitPromise = null;
+      state.revokeWorkerScript = false;
+    }
+
+    async function ensureWorkerScript() {
+      if (state.workerScript) return state.workerScript;
+      if (state.workerInitPromise) return state.workerInitPromise;
+
+      state.workerInitPromise = (async () => {
+        // Always fetch worker script and create a Blob URL to avoid CORS issues
+        // Browsers block new Worker() with cross-origin URLs
+        try {
+          const resp = await fetch(GIF_WORKER_URL, { mode: "cors" });
+          if (!resp.ok) throw new Error(`worker fetch failed: ${resp.status}`);
+          const code = await resp.text();
+          const blob = new Blob([code], { type: "application/javascript" });
+          state.workerScript = URL.createObjectURL(blob);
+          state.revokeWorkerScript = true;
+          return state.workerScript;
+        } catch (_) {
+          // Fallback: use importScripts wrapper
+          const wrapper = new Blob([`importScripts("${GIF_WORKER_URL}");`], {
+            type: "application/javascript",
+          });
+          state.workerScript = URL.createObjectURL(wrapper);
+          state.revokeWorkerScript = true;
+          return state.workerScript;
+        }
+      })();
+
+      try {
+        return await state.workerInitPromise;
+      } catch (err) {
+        state.workerInitPromise = null;
+        throw err;
+      }
+    }
+
+    function clearGenerated() {
+      cleanupGeneratedUrls();
+      state.generated = [];
+      dom.gifGrid.innerHTML = "";
+      setStatus(""); // Clear status text without showing a cleared msg
+      if(dom.progressBar) dom.progressBar.classList.remove("active");
+      dom.divider1.style.display = "none";
+      dom.previewHeader.style.display = "none";
+      dom.h2Output.style.display = "none";
+      dom.divider2.style.display = "none";
+      dom.downloadWrap.style.display = "none";
+      dom.copyWrap.style.display = "none";
+      dom.syncWrap.style.display = "none";
+      dom.stripPreview.innerHTML = "";
+      dom.stripPreview.classList.remove("vertical");
+      dom.copyAllBtn.disabled = true;
+      if (dom.downloadZipBtn) dom.downloadZipBtn.style.display = "none";
+      setProgress(0);
+    }
+
+    function clearAll() {
+      if (state.busy) return;
+      clearGenerated();
+      cleanupSourceUrls();
+      state.sourceImages = [];
+      dom.sourceGrid.innerHTML = "";
+      dom.fileInput.value = "";
+      dom.targetWidth.value = "768";
+      dom.targetHeight.value = "768";
+      refreshSourceRatioVar();
+      refreshDropCount();
+      setStatus(t("statusCleared"));
+    }
+
+    function setDirection(dir, keep = false) {
+      if (dir !== "horizontal" && dir !== "vertical") return;
+      if (state.direction === dir) return;
+
+      state.direction = dir;
+      dom.dirButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.dir === dir));
+
+      if (!keep && state.generated.length > 0) {
+        clearGenerated();
+        setStatus(t("statusDirChanged"));
+      }
+    }
+
+    function setFitMode(mode, keep = false) {
+      if (mode !== "cover" && mode !== "contain") return;
+      if (state.fitMode === mode) return;
+      state.fitMode = mode;
+      dom.fitButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.fit === mode));
+
+      if (!keep && state.generated.length > 0) {
+        clearGenerated();
+        setStatus(t("statusLayoutChanged"));
+      }
+      document.body.setAttribute("data-fit", mode);
+      updateCroppers();
+    }
+
+    function onTransformParamsChanged() {
+      if (!state.busy && state.generated.length > 0) {
+        clearGenerated();
+        setStatus(t("statusLayoutChanged"));
+      }
+      updateCroppers();
+    }
+
+    function createImageFromFile(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          resolve({
+            file,
+            name: file.name,
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+            img,
+            sourceUrl: url,
+            focalX: 0.5,
+            focalY: 0.5,
+          });
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error(t("errCannotRead", { name: file.name })));
+        };
+        img.src = url;
+      });
+    }
+
+    async function addFiles(fileList) {
+      const files = Array.from(fileList || []).filter((f) => /^image\//.test(f.type));
+      if (files.length === 0) {
+        setStatus(t("errNoValidFiles"), "err");
+        return;
+      }
+
+      const loaded = [];
+      for (const f of files) {
+        try {
+          loaded.push(await createImageFromFile(f));
+        } catch (err) {
+          setStatus(err.message || t("errImageLoad"), "err");
+        }
+      }
+      if (loaded.length === 0) return;
+
+      state.sourceImages.push(...loaded);
+      applyAverageTargetSize();
+      renderSourceImages();
+      clearGenerated();
+      setStatus(t("statusLoaded", { n: state.sourceImages.length }), "ok");
+    }
+
+    function renderSourceImages() {
+      refreshDropCount();
+      refreshDropCount();
+      dom.sourceGrid.innerHTML = "";
+      state.sourceImages.forEach((x, i) => {
+        const card = document.createElement("article");
+        card.className = "source-card";
+
+        const thumbWrap = document.createElement("div");
+        thumbWrap.className = "source-thumb-wrap";
+        thumbWrap.dataset.index = i;
+
+        const img = document.createElement("img");
+        img.className = "bg-img";
+        img.src = x.sourceUrl;
+        img.alt = x.name;
+        img.draggable = false;
+        
+        const box = document.createElement("div");
+        box.className = "cropper-box";
+        box.dataset.index = i;
+
+        thumbWrap.append(img, box);
+
+        const meta = document.createElement("div");
+        meta.className = "source-meta";
+
+        const name = document.createElement("div");
+        name.className = "source-name";
+        name.textContent = `#${i + 1} ${x.name}`;
+        name.title = x.name;
+
+        const res = document.createElement("div");
+        res.className = "source-res";
+        res.textContent = `${x.width} x ${x.height}`;
+        
+        const delBtn = document.createElement("button");
+        delBtn.className = "btn-delete-img";
+        delBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" class="icon"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+        delBtn.title = "\u79FB\u9664\u56FE\u7247"; // 移除图片
+        delBtn.onclick = (e) => {
+          e.stopPropagation();
+          state.sourceImages.splice(i, 1);
+          if (x.sourceUrl) URL.revokeObjectURL(x.sourceUrl);
+          if (state.sourceImages.length === 0) {
+            clearAll();
+          } else {
+            applyAverageTargetSize();
+            renderSourceImages();
+            clearGenerated();
+            setStatus(t("statusLoaded", { n: state.sourceImages.length }), "ok");
+          }
+        };
+
+        thumbWrap.append(delBtn);
+        meta.append(name, res);
+        card.append(thumbWrap, meta);
+        dom.sourceGrid.appendChild(card);
+        
+        bindCropperEvents(box, thumbWrap, x);
+      });
+      document.body.setAttribute("data-fit", state.fitMode);
+      updateCroppers();
+    }
+
+    function bindCropperEvents(box, wrap, info) {
+      let isDragging = false;
+      let startX = 0, startY = 0;
+      let startFocalX = 0.5, startFocalY = 0.5;
+
+      const onStart = (e) => {
+        if (state.fitMode !== "cover") return;
+        isDragging = true;
+        const pts = e.touches ? e.touches[0] : e;
+        startX = pts.clientX;
+        startY = pts.clientY;
+        startFocalX = info.focalX;
+        startFocalY = info.focalY;
+        e.preventDefault();
+      };
+
+      const onMove = (e) => {
+        if (!isDragging) return;
+        const pts = e.touches ? e.touches[0] : e;
+        const dx = pts.clientX - startX;
+        const dy = pts.clientY - startY;
+        
+        const img = wrap.querySelector(".bg-img");
+        const rect = img.getBoundingClientRect();
+        
+        const imgAspect = info.width / info.height;
+        const wrapAspect = rect.width / rect.height;
+        let drawnW = rect.width, drawnH = rect.height;
+        
+        if (imgAspect > wrapAspect) {
+          drawnH = rect.width / imgAspect;
+        } else {
+          drawnW = rect.height * imgAspect;
+        }
+
+        const targetW = Math.max(1, Number(dom.targetWidth.value) || 1);
+        const targetH = Math.max(1, Number(dom.targetHeight.value) || 1);
+        const targetAspect = targetW / targetH;
+        
+        let boxW = drawnW, boxH = drawnH;
+        if (imgAspect > targetAspect) {
+          boxW = drawnH * targetAspect;
+        } else {
+          boxH = drawnW / targetAspect;
+        }
+
+        const maxScrollX = drawnW - boxW;
+        const maxScrollY = drawnH - boxH;
+
+        const deltaX = maxScrollX > 0 ? dx / maxScrollX : 0;
+        const deltaY = maxScrollY > 0 ? dy / maxScrollY : 0;
+        
+        info.focalX = Math.max(0, Math.min(1, startFocalX + deltaX));
+        info.focalY = Math.max(0, Math.min(1, startFocalY + deltaY));
+        updateCroppers();
+      };
+
+      const onEnd = () => {
+        isDragging = false;
+      };
+
+      box.addEventListener("mousedown", onStart);
+      box.addEventListener("touchstart", onStart, { passive: false });
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("touchmove", onMove, { passive: false });
+      window.addEventListener("mouseup", onEnd);
+      window.addEventListener("touchend", onEnd);
+    }
+
+    function updateCroppers() {
+      const targetW = Math.max(1, Number(dom.targetWidth.value) || 1);
+      const targetH = Math.max(1, Number(dom.targetHeight.value) || 1);
+      const targetAspect = targetW / targetH;
+
+      const wraps = document.querySelectorAll(".source-thumb-wrap");
+      wraps.forEach(wrap => {
+        const idx = wrap.dataset.index;
+        const info = state.sourceImages[idx];
+        if (!info) return;
+
+        const box = wrap.querySelector(".cropper-box");
+        const img = wrap.querySelector(".bg-img");
+        
+        // Calculate visual dimensions of the `object-fit: contain` image within the wrapper
+        const wrapW = wrap.clientWidth;
+        const wrapH = wrap.clientHeight;
+        const imgAspect = info.width / info.height;
+        
+        let drawnW = wrapW, drawnH = wrapH;
+        let padX = 0, padY = 0;
+        
+        if (imgAspect > wrapW / wrapH) {
+          drawnH = wrapW / imgAspect;
+          padY = (wrapH - drawnH) / 2;
+        } else {
+          drawnW = wrapH * imgAspect;
+          padX = (wrapW - drawnW) / 2;
+        }
+
+        // Calculate cropper box dimensions based on target ratio
+        let boxW = drawnW, boxH = drawnH;
+        if (imgAspect > targetAspect) {
+          // Image is wider than target -> restrict width
+          boxW = drawnH * targetAspect;
+        } else {
+          // Image is taller than target -> restrict height
+          boxH = drawnW / targetAspect;
+        }
+
+        // Apply focal positioning
+        const maxScrollX = drawnW - boxW;
+        const maxScrollY = drawnH - boxH;
+        const left = padX + (maxScrollX * info.focalX);
+        const top = padY + (maxScrollY * info.focalY);
+
+        box.style.width = `${boxW}px`;
+        box.style.height = `${boxH}px`;
+        box.style.left = `${left}px`;
+        box.style.top = `${top}px`;
+        
+        // Disable grabbing UI if no scrolling is mathematically possible on an axis
+        if (maxScrollX <= 0 && maxScrollY <= 0) {
+          box.style.cursor = "default";
+        } else {
+          box.style.cursor = "grab";
+        }
+      });
+    }
+
+    function normalizeToCanvas(info, targetW, targetH, fitMode) {
+      const canvas = document.createElement("canvas");
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext("2d");
+
+      const scale =
+        fitMode === "contain"
+          ? Math.min(targetW / info.width, targetH / info.height)
+          : Math.max(targetW / info.width, targetH / info.height);
+      const drawW = Math.round(info.width * scale);
+      const drawH = Math.round(info.height * scale);
+      
+      let dx = Math.floor((targetW - drawW) / 2);
+      let dy = Math.floor((targetH - drawH) / 2);
+
+      if (fitMode === "cover") {
+        const maxScrollX = targetW - drawW;
+        const maxScrollY = targetH - drawH;
+        dx = Math.round(maxScrollX * (info.focalX ?? 0.5));
+        dy = Math.round(maxScrollY * (info.focalY ?? 0.5));
+      }
+
+      ctx.clearRect(0, 0, targetW, targetH);
+      if (fitMode === "contain") {
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, targetW, targetH);
+      }
+      ctx.drawImage(info.img, dx, dy, drawW, drawH);
+      return canvas;
+    }
+
+    function buildGifForSegment({
+      normalizedCanvases,
+      segmentStart,
+      segmentSize,
+      frameW,
+      frameH,
+      direction,
+      delay,
+      quality,
+      workerScript,
+    }) {
+      return new Promise(async (resolve, reject) => {
+        // If GIF engine not loaded (common on mobile), try to dynamically load it
+        if (typeof GIF === "undefined") {
+          try {
+            await new Promise((res, rej) => {
+              const s = document.createElement("script");
+              s.src = "https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js";
+              s.onload = res;
+              s.onerror = rej;
+              document.head.appendChild(s);
+            });
+          } catch (_) { /* still undefined, will fail below */ }
+        }
+
+        if (typeof GIF === "undefined") {
+          reject(new Error(t("errEngineMissing")));
+          return;
+        }
+
+        // Our UI slider goes from 256 (best quality, full colors) down to 4 (extreme blocky compression)
+        const q = Math.max(4, Math.min(256, Number(quality) || 256));
+        const colorLevels = q;
+        const step = colorLevels < 256 ? 256 / colorLevels : 0;
+
+        // gif.js still expects a "quality" parameter for NeuQuant sampling (1 = best, 30 = worst). 
+        // We'll roughly map our 256->4 back to 1->30 for the internal encoder settings.
+        const internalEngineQuality = Math.round(1 + ((256 - q) / 252) * 29);
+
+        const gif = new GIF({
+          workers: 2,
+          quality: internalEngineQuality,
+          width: frameW,
+          height: frameH,
+          repeat: 0,
+          workerScript,
+        });
+
+        const frameCanvas = document.createElement("canvas");
+        frameCanvas.width = frameW;
+        frameCanvas.height = frameH;
+        const ctx = frameCanvas.getContext("2d");
+
+        for (let frameIndex = 0; frameIndex < normalizedCanvases.length; frameIndex += 1) {
+          const src = normalizedCanvases[frameIndex];
+          const sx = 0;
+          const sy = segmentStart;
+          const rawSw = src.width;
+          const rawSh = segmentSize;
+          const sw = Math.max(0.0001, Math.min(rawSw, src.width - sx));
+          const sh = Math.max(0.0001, Math.min(rawSh, src.height - sy));
+          
+          ctx.clearRect(0, 0, frameW, frameH);
+          ctx.drawImage(src, sx, sy, sw, sh, 0, 0, frameW, frameH);
+          
+          // Posterize: reduce color depth for better LZW compression
+          if (step > 0) {
+            const imageData = ctx.getImageData(0, 0, frameW, frameH);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+              data[i]   = Math.round(Math.floor(data[i]   / step) * step); // R
+              data[i+1] = Math.round(Math.floor(data[i+1] / step) * step); // G
+              data[i+2] = Math.round(Math.floor(data[i+2] / step) * step); // B
+            }
+            ctx.putImageData(imageData, 0, 0);
+          }
+          
+          gif.addFrame(frameCanvas, { copy: true, delay });
+        }
+
+        gif.on("finished", resolve);
+        gif.on("abort", () => reject(new Error(t("errRenderAbort"))));
+        gif.on("error", (err) => reject(err || new Error(t("errRenderFail"))));
+        gif.render();
+      });
+    }
+
+    async function generateGifs() {
+      if (state.busy) return;
+      if (state.sourceImages.length < 1) {
+        setStatus(t("errNeedImage"), "err");
+        return;
+      }
+
+      const segmentCount = Number(dom.segmentCount.value);
+      const delayInput = Number(dom.frameDelay.value);
+      const quality = Number(dom.quality.value);
+      const direction = state.direction;
+      const fitMode = state.fitMode;
+      const targetInputW = Number(dom.targetWidth.value);
+      const targetInputH = Number(dom.targetHeight.value);
+
+      if (!Number.isInteger(segmentCount) || segmentCount < 1 || segmentCount > 30) {
+        setStatus(t("errSegments"), "err");
+        return;
+      }
+      if (!Number.isFinite(delayInput) || delayInput < 50) {
+        setStatus(t("errDelay"), "err");
+        return;
+      }
+      const delay = Math.max(10, Math.round(delayInput / 10) * 10);
+      
+      // 注意：这里是发车前的最后一道质量校验大闸！
+      // 它约束了上面获取的 quality 变量。
+      // 如果你未来需要更改 UI 上的滑块范围（比如改成 1-50 或者 256-2），
+      // 必须同步修改这里的检测区间边界！
+      if (!Number.isInteger(quality) || quality < 4 || quality > 256) {
+        setStatus(t("errQuality"), "err");
+        return;
+      }
+      if (
+        !Number.isFinite(targetInputW) ||
+        !Number.isFinite(targetInputH) ||
+        targetInputW < 2 ||
+        targetInputH < 2 ||
+        targetInputW > 4096 ||
+        targetInputH > 4096
+      ) {
+        setStatus(t("errTargetSize"), "err");
+        return;
+      }
+
+      let targetW = Math.floor(targetInputW);
+      let targetH = Math.floor(targetInputH);
+      const sourceStep = targetH / segmentCount;
+      const frameW = targetW;
+      const frameH = Math.max(2, Math.floor(sourceStep));
+
+      if (!Number.isFinite(sourceStep) || sourceStep <= 0 || frameW < 2 || frameH < 2) {
+        setStatus(t("errTargetSegment"), "err");
+        return;
+      }
+
+      clearGenerated();
+      setBusy(true);
+
+      try {
+        setStatus(t("statusInitEngine"));
+        const workerScript = await ensureWorkerScript();
+
+        setStatus(t("statusNormalize"));
+        const normalized = state.sourceImages.map((x) => normalizeToCanvas(x, targetW, targetH, fitMode));
+
+        const modeLabel = t("modeHorizontal");
+        setStatus(t("statusGenerating", { n: segmentCount, mode: modeLabel, w: targetW, h: targetH }));
+        const output = [];
+        for (let i = 0; i < segmentCount; i += 1) {
+          setProgress(Math.round((i / segmentCount) * 100));
+          setStatus(t("statusRendering", { i: i + 1, n: segmentCount }));
+          const segStart = i * sourceStep;
+          const segSize = sourceStep;
+
+          const blob = await buildGifForSegment({
+            normalizedCanvases: normalized,
+            segmentStart: segStart,
+            segmentSize: segSize,
+            frameW,
+            frameH,
+            direction,
+            delay,
+            quality,
+            workerScript,
+          });
+
+          const url = URL.createObjectURL(blob);
+          state.objectUrls.push(url);
+          output.push({
+            index: i,
+            blob,
+            url,
+            name: `segment-${String(i + 1).padStart(2, "0")}.gif`,
+          });
+        }
+
+        state.generated = output;
+        renderGenerated();
+        setProgress(100);
+        setStatus(t("statusDone", { n: output.length }), "ok");
+      } catch (err) {
+        console.error(err);
+        const msg = String(err && err.message ? err.message : "");
+        if (/worker|importScripts|Failed to construct/i.test(msg)) {
+          setStatus(t("errWorker"), "err");
+        } else {
+          setStatus(msg || t("errGenerate"), "err");
+        }
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function renderGenerated() {
+      dom.gifGrid.innerHTML = "";
+      dom.stripPreview.innerHTML = "";
+      dom.stripPreview.classList.toggle("vertical", state.direction === "horizontal");
+
+      state.generated.forEach((g) => {
+        const card = document.createElement("article");
+        card.className = "card";
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        const a = document.createElement("span");
+        a.textContent = t("segmentLabel", { n: g.index + 1 });
+        const b = document.createElement("span");
+        b.textContent = `${Math.max(1, Math.round(g.blob.size / 1024))} KB`;
+        meta.append(a, b);
+
+        const img = document.createElement("img");
+        img.className = "thumb";
+        img.src = g.url;
+        img.alt = g.name;
+
+        const row = document.createElement("div");
+        row.className = "row-actions";
+
+        const copyBtn = document.createElement("button");
+        copyBtn.className = "btn btn-ghost";
+        copyBtn.textContent = t("btnCopyThis");
+        copyBtn.addEventListener("click", async () => {
+          try {
+            const mode = await copySingleGif(g);
+            if (mode === "selection") {
+              setStatus(t("statusCopiedSelection", { name: g.name }), "ok");
+            } else if (mode === "html") {
+              setStatus(t("statusCopiedHtml", { name: g.name }), "ok");
+            } else {
+              setStatus(t("statusCopiedOne", { name: g.name }), "ok");
+            }
+          } catch (err) {
+            setStatus(err && err.message ? err.message : t("errCopyFailed"), "err");
+          }
+        });
+
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "btn btn-ghost";
+        saveBtn.textContent = t("btnDownload");
+        saveBtn.addEventListener("click", () => downloadBlob(g.blob, g.name));
+
+        row.append(copyBtn, saveBtn);
+        card.append(meta, img, row);
+        dom.gifGrid.appendChild(card);
+
+        const stripImg = document.createElement("img");
+        stripImg.src = g.url;
+        stripImg.alt = `segment-${g.index + 1}`;
+        dom.stripPreview.appendChild(stripImg);
+      });
+
+      dom.divider1.style.display = "block";
+      dom.previewHeader.style.display = "none";
+      dom.h2Output.style.display = "none";
+      dom.divider2.style.display = "block";
+      
+      const hasGifs = state.generated.length > 0;
+      dom.copyWrap.style.display = hasGifs ? "flex" : "none";
+      dom.downloadWrap.style.display = hasGifs ? "flex" : "none";
+      
+      // 显示同步按钮
+      if (state.generated.length > 1 && dom.syncWrap) {
+        dom.syncWrap.style.display = "flex";
+      } else if (dom.syncWrap) {
+        dom.syncWrap.style.display = "none";
+      }
+
+      // 强制同步网页中多张 GIF 的播放时间轴
+      syncPreviewGifs();
+
+      if (state.generated.length > 0) {
+        if (dom.downloadZipBtn) dom.downloadZipBtn.style.display = "inline-block";
+        if (dom.downloadBulkBtn) {
+          dom.downloadBulkBtn.style.display = "inline-block";
+          dom.downloadBulkBtn.textContent = `💾 批量下载 (${state.generated.length})`;
+        }
+      }
+    }
+
+    function syncPreviewGifs() {
+      const imgs = Array.from(dom.stripPreview.querySelectorAll("img"));
+      if (imgs.length <= 1) return;
+      
+      const btn = dom.btnSyncPreview;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "...";
+      }
+
+      // 等待所有预览图在后台完成初次解码
+      Promise.all(imgs.map((img) => img.decode().catch(() => {}))).then(() => {
+        // 稍微延迟一下，让浏览器有时间将所有独立 GIF 完全载入内存管线
+        setTimeout(() => {
+          // 清空预览容器，强迫重绘
+          dom.stripPreview.innerHTML = "";
+          
+          // 给原 Blob 生成一批“全新”的临时 URL
+          const freshUrls = state.generated.map(g => URL.createObjectURL(g.blob));
+          const fragment = document.createDocumentFragment();
+          
+          freshUrls.forEach((u, i) => {
+            const stripImg = document.createElement("img");
+            stripImg.src = u;
+            stripImg.alt = `segment-${state.generated[i].index + 1}`;
+            fragment.appendChild(stripImg);
+          });
+          
+          // 在下一帧一次性全部塞回 DOM，强制它们在同一个毫秒起跑
+          requestAnimationFrame(() => {
+            dom.stripPreview.appendChild(fragment);
+            if (btn) {
+              btn.disabled = false;
+              btn.textContent = t("btnSyncPreview");
+            }
+            
+            // 起跑后回收这些临时 URL
+            setTimeout(() => {
+              freshUrls.forEach(u => URL.revokeObjectURL(u));
+            }, 4000);
+          });
+        }, 300);
+      });
+    }
+
+    function downloadBlob(blob, name) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function downloadAllZip() {
+      if (state.generated.length === 0 || state.busy) return;
+      if (typeof JSZip === "undefined") {
+        setStatus(t("errZipFailed") + ": JSZip not loaded", "err");
+        return;
+      }
+
+      setBusy(true);
+      try {
+        const zip = new JSZip();
+        state.generated.forEach((g) => {
+          zip.file(g.name, g.blob);
+        });
+
+        setStatus(t("statusZipping", { n: 0 }));
+        const zipBlob = await zip.generateAsync({ type: "blob" }, (metadata) => {
+          const percent = Math.round(metadata.percent);
+          setStatus(t("statusZipping", { n: percent }));
+          setProgress(percent);
+        });
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-").substring(0, 19);
+        downloadBlob(zipBlob, `gifs-${timestamp}.zip`);
+        setStatus(t("statusDone", { n: state.generated.length }), "ok");
+      } catch (err) {
+        console.error("ZIP Error:", err);
+        setStatus(t("errZipFailed"), "err");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function blobToDataURL(blob) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result || ""));
+        r.onerror = () => reject(new Error(t("errDataConv")));
+        r.readAsDataURL(blob);
+      });
+    }
+
+    async function copyByAsyncClipboard(blobs) {
+      if (!navigator.clipboard || typeof ClipboardItem === "undefined") {
+        throw new Error(t("errAsyncUnsupported"));
+      }
+      if (typeof ClipboardItem.supports === "function" && !ClipboardItem.supports("image/gif")) {
+        throw new Error(t("errGifWriteUnsupported"));
+      }
+      const items = blobs.map((b) => new ClipboardItem({ "image/gif": b }));
+      await navigator.clipboard.write(items);
+    }
+
+    async function waitImagesReady(imgs) {
+      await Promise.all(
+        imgs.map(
+          (img) =>
+            new Promise((resolve, reject) => {
+              if (img.complete && img.naturalWidth > 0) {
+                resolve();
+                return;
+              }
+              img.onload = () => resolve();
+              img.onerror = () => reject(new Error(t("errImageLoadCopy")));
+            })
+        )
+      );
+    }
+
+    async function copyBySelection(urls) {
+      if (!urls || urls.length === 0) throw new Error(t("errNoImagesCopy"));
+      const holder = document.createElement("div");
+      holder.contentEditable = "true";
+      holder.style.position = "fixed";
+      holder.style.left = "-9999px";
+      holder.style.top = "0";
+      holder.style.opacity = "0.01";
+      holder.style.pointerEvents = "none";
+      holder.style.whiteSpace = "nowrap";
+
+      const imgs = urls.map((u) => {
+        const img = document.createElement("img");
+        img.src = u;
+        img.alt = "gif";
+        img.style.display = "inline-block";
+        img.style.marginRight = "2px";
+        holder.appendChild(img);
+        return img;
+      });
+
+      document.body.appendChild(holder);
+      try {
+        await waitImagesReady(imgs);
+        await new Promise((resolve, reject) => {
+          requestAnimationFrame(() => {
+            try {
+              const sel = window.getSelection();
+              const range = document.createRange();
+              range.selectNodeContents(holder);
+              sel.removeAllRanges();
+              sel.addRange(range);
+              const ok = document.execCommand("copy");
+              sel.removeAllRanges();
+              if (!ok) {
+                reject(new Error(t("errSelectionBlocked")));
+                return;
+              }
+              resolve();
+            } catch (err) {
+              reject(err);
+            }
+          });
+        });
+      } finally {
+        holder.remove();
+      }
+    }
+
+    async function buildInlineGifHtml(blobs) {
+      const urls = await Promise.all(blobs.map((b) => blobToDataURL(b)));
+      return `<div>${urls
+        .map((u, i) => `<img src="${u}" alt="gif-${i + 1}" style="display:inline-block;margin-right:2px;" />`)
+        .join("")}</div>`;
+    }
+
+    async function copyRichHtmlBySelection(blobs) {
+      if (!blobs || blobs.length === 0) throw new Error(t("errNoImagesCopy"));
+
+      const holder = document.createElement("div");
+      holder.contentEditable = "true";
+      holder.style.position = "fixed";
+      holder.style.left = "-9999px";
+      holder.style.top = "0";
+      holder.style.opacity = "0.01";
+      holder.style.pointerEvents = "none";
+      holder.style.whiteSpace = "nowrap";
+      holder.innerHTML = await buildInlineGifHtml(blobs);
+
+      document.body.appendChild(holder);
+      try {
+        const imgs = Array.from(holder.querySelectorAll("img"));
+        await waitImagesReady(imgs);
+        await new Promise((resolve, reject) => {
+          requestAnimationFrame(() => {
+            try {
+              const sel = window.getSelection();
+              const range = document.createRange();
+              range.selectNodeContents(holder);
+              sel.removeAllRanges();
+              sel.addRange(range);
+              const ok = document.execCommand("copy");
+              sel.removeAllRanges();
+              if (!ok) {
+                reject(new Error(t("errSelectionBlocked")));
+                return;
+              }
+              resolve();
+            } catch (err) {
+              reject(err);
+            }
+          });
+        });
+      } finally {
+        holder.remove();
+      }
+    }
+
+    async function copyAsHtml(blobs) {
+      if (!navigator.clipboard || typeof ClipboardItem === "undefined") {
+        throw new Error(t("errHtmlUnsupported"));
+      }
+      const html = await buildInlineGifHtml(blobs);
+      const item = new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }) });
+      await navigator.clipboard.write([item]);
+    }
+
+    async function copySingleGif(gif) {
+      try {
+        await copyRichHtmlBySelection([gif.blob]);
+        return "selection";
+      } catch (_) {}
+
+      try {
+        await copyAsHtml([gif.blob]);
+        return "html";
+      } catch (_) {}
+
+      try {
+        await copyBySelection([gif.url]);
+        return "selection";
+      } catch (_) {}
+
+      await copyByAsyncClipboard([gif.blob]);
+      return "async";
+    }
+
+    async function copyAllGifs() {
+      if (state.generated.length === 0 || state.busy) return;
+      const blobs = state.generated.map((x) => x.blob);
+
+      try {
+        await copyRichHtmlBySelection(blobs);
+        setStatus(t("statusCopiedAllSelection"), "ok");
+        return;
+      } catch (_) {}
+
+      try {
+        await copyAsHtml(blobs);
+        setStatus(t("statusCopiedAllHtml"), "ok");
+        return;
+      } catch (_) {}
+
+      setStatus(t("errMultiBlocked"), "err");
+    }
+
+    function setupDrop() {
+      dom.dropZone.addEventListener("click", () => {
+        if (!state.busy) dom.fileInput.click();
+      });
+      dom.dropZone.addEventListener("keydown", (e) => {
+        if (state.busy) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          dom.fileInput.click();
+        }
+      });
+
+      ["dragenter", "dragover"].forEach((evt) => {
+        dom.dropZone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dom.dropZone.classList.add("dragover");
+        });
+      });
+      ["dragleave", "drop"].forEach((evt) => {
+        dom.dropZone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dom.dropZone.classList.remove("dragover");
+        });
+      });
+
+      dom.dropZone.addEventListener("drop", (e) => {
+        if (state.busy) return;
+        addFiles(e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files : []);
+      });
+
+      dom.fileInput.addEventListener("change", (e) => {
+        if (state.busy) return;
+        addFiles(e.target.files || []);
+      });
+    }
+
+    dom.generateBtn.addEventListener("click", generateGifs);
+    dom.copyAllBtn.addEventListener("click", copyAllGifs);
+    dom.clearBtn.addEventListener("click", clearAll);
+    if (dom.downloadBulkBtn) {
+      dom.downloadBulkBtn.addEventListener("click", () => {
+        if (state.generated.length === 0 || state.busy) return;
+        setStatus(t("statusDone", { n: state.generated.length }), "ok");
+        // Download each file with a small delay to prevent browser from blocking multiple popups
+        state.generated.forEach((g, i) => {
+          setTimeout(() => downloadBlob(g.blob, g.name), i * 150);
+        });
+      });
+    }
+    if (dom.downloadZipBtn) dom.downloadZipBtn.addEventListener("click", downloadAllZip);
+    if (dom.btnSyncPreview) dom.btnSyncPreview.addEventListener("click", syncPreviewGifs);
+    dom.dirButtons.forEach((btn) => {
+      btn.addEventListener("click", () => setDirection(btn.dataset.dir || "horizontal"));
+    });
+    dom.fitButtons.forEach((btn) => {
+      btn.addEventListener("click", () => setFitMode(btn.dataset.fit || "cover"));
+    });
+
+    function bindRangeNumberSync(numInput, rangeInput) {
+      if (!numInput || !rangeInput) return;
+      rangeInput.addEventListener("input", () => {
+        numInput.value = rangeInput.value;
+        const e = new Event("input", { bubbles: true });
+        numInput.dispatchEvent(e);
+      });
+      numInput.addEventListener("input", () => {
+        const min = Number(rangeInput.min) || 0;
+        const max = Number(rangeInput.max) || 9999;
+        const val = Number(numInput.value) || min;
+        rangeInput.value = String(Math.max(min, Math.min(max, val)));
+      });
+    }
+
+    bindRangeNumberSync(dom.segmentCount, dom.segmentCountRange);
+    bindRangeNumberSync(dom.frameDelay, dom.frameDelayRange);
+    bindRangeNumberSync(dom.quality, dom.qualityRange);
+    bindRangeNumberSync(dom.targetWidth, dom.targetWidthRange);
+    bindRangeNumberSync(dom.targetHeight, dom.targetHeightRange);
+
+    dom.targetWidth.addEventListener("input", refreshSourceRatioVar);
+    dom.targetHeight.addEventListener("input", refreshSourceRatioVar);
+    dom.targetWidth.addEventListener("change", onTransformParamsChanged);
+    dom.targetHeight.addEventListener("change", onTransformParamsChanged);
+
+    applyChineseUI();
+    dom.dropZone.setAttribute("aria-label", t("dropHint"));
+    setupDrop();
+    setStatus(""); // Initially empty instead of "Waiting for images..."
+
+    window.addEventListener("beforeunload", () => {
+      cleanupGeneratedUrls();
+      cleanupSourceUrls();
+      cleanupWorkerScript();
+    });
+
+
+  </script>
+</body>
+</html>
